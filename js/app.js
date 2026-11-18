@@ -1,1001 +1,936 @@
-/* ==========================================================================
-   CareerConnect – Main Application Controller & Router
-   ========================================================================== */
+/**
+ * InternLens KH – Application Controller & In-Memory State Manager
+ * Course: CADT Year 2 Fundamental Web Design (Term 1)
+ * 
+ * Strict Boundaries:
+ * - Stateless & In-Memory: No localStorage, no sessionStorage, no cookies.
+ * - Hash-based client routing with query param parsing.
+ * - Deterministic weighted scoring engine.
+ */
 
-const UIState = {
-  appStatusTab: 'All',
-  applicantJobFilter: 'All',
-  applicantStatusFilter: 'All',
-  adminTab: 'overview',
-  adminSearch: '',
-  mobilePreviewTab: 'm-dashboard',
-  sidebarOpen: false
+const InternLensApp = {
+  // In-memory state (resets on full page reload)
+  state: {
+    currentRoute: 'overview',
+    explorerFilters: {
+      search: '',
+      track: 'All',
+      allowance: 'All',
+      viewMode: 'grid' // 'grid' | 'table'
+    },
+    checker: {
+      selectedJobId: null,
+      checkedSkills: new Set()
+    }
+  },
+
+  /**
+   * Application bootstrap.
+   */
+  init() {
+    window.addEventListener('hashchange', () => this.handleRouting());
+    window.addEventListener('load', () => this.handleRouting());
+    
+    // Initial routing call in case page is already loaded
+    this.handleRouting();
+  },
+
+  /**
+   * Parse the hash and route to the corresponding view.
+   */
+  handleRouting() {
+    const rawHash = window.location.hash.slice(1) || 'overview';
+    const [path, queryString] = rawHash.split('?');
+    const queryParams = new URLSearchParams(queryString || '');
+
+    const validRoutes = ['overview', 'explorer', 'checker'];
+    const activeRoute = validRoutes.includes(path) ? path : 'overview';
+    this.state.currentRoute = activeRoute;
+
+    // Update active nav links in header
+    this.updateNavLinks(activeRoute);
+
+    // Route dispatch
+    const rootElement = document.getElementById('app-root');
+    if (!rootElement) return;
+
+    if (activeRoute === 'overview') {
+      this.renderOverview(rootElement);
+    } else if (activeRoute === 'explorer') {
+      const trackParam = queryParams.get('track');
+      if (trackParam && TRACKS.includes(trackParam)) {
+        this.state.explorerFilters.track = trackParam;
+      }
+      this.renderExplorer(rootElement);
+    } else if (activeRoute === 'checker') {
+      const jobIdParam = queryParams.get('jobId');
+      if (jobIdParam) {
+        const found = INTERNSHIPS.find(j => j.id === jobIdParam);
+        if (found) {
+          if (this.state.checker.selectedJobId !== jobIdParam) {
+            this.state.checker.selectedJobId = jobIdParam;
+            this.state.checker.checkedSkills.clear();
+          }
+        }
+      }
+      this.renderChecker(rootElement);
+    }
+
+    // Scroll to top on navigation
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  },
+
+  /**
+   * Highlight current active page link in header.
+   */
+  updateNavLinks(activeRoute) {
+    const navLinks = document.querySelectorAll('.nav-link');
+    navLinks.forEach(link => {
+      const href = link.getAttribute('href') || '';
+      const routeName = href.replace('#', '').split('?')[0];
+      if (routeName === activeRoute) {
+        link.classList.add('active');
+        link.setAttribute('aria-current', 'page');
+      } else {
+        link.classList.remove('active');
+        link.removeAttribute('aria-current');
+      }
+    });
+  },
+
+  // =========================================================================
+  // PAGE 1: MARKET OVERVIEW (#overview)
+  // =========================================================================
+
+  renderOverview(rootElement) {
+    const totalJobs = INTERNSHIPS.length;
+
+    // Track distribution
+    const trackCounts = {
+      'Frontend': 0,
+      'Backend/Full-Stack': 0,
+      'Data/BI': 0,
+      'QA/IT Support': 0
+    };
+
+    // Allowance distribution
+    const allowanceCounts = {
+      'Paid': 0,
+      'Unpaid': 0,
+      'Not Stated': 0
+    };
+
+    // Skill frequencies
+    const skillFrequencyMap = {};
+
+    INTERNSHIPS.forEach(job => {
+      if (trackCounts[job.roleTrack] !== undefined) {
+        trackCounts[job.roleTrack]++;
+      }
+      if (allowanceCounts[job.allowance] !== undefined) {
+        allowanceCounts[job.allowance]++;
+      }
+
+      // Count unique skills per job
+      const combinedSkills = new Set([...job.mandatorySkills, ...job.preferredSkills]);
+      combinedSkills.forEach(skill => {
+        skillFrequencyMap[skill] = (skillFrequencyMap[skill] || 0) + 1;
+      });
+    });
+
+    // Top 8-10 skills
+    const sortedSkills = Object.entries(skillFrequencyMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+
+    const skillBarsHTML = sortedSkills.map(([skill, count]) => 
+      Components.renderSkillBar(skill, count, totalJobs)
+    ).join('');
+
+    rootElement.innerHTML = `
+      <section class="overview-section" aria-labelledby="overview-heading">
+        <!-- Hero Introduction -->
+        <div class="hero-banner">
+          <div class="hero-content">
+            <span class="badge badge-accent">CADT Term 1 • Fundamental Web Design</span>
+            <h1 id="overview-heading" class="hero-title">InternLens KH</h1>
+            <p class="hero-subtitle">
+              Explore curated Phnom Penh tech internships and evaluate your academic skill readiness against industry job requirements with deterministic scoring.
+            </p>
+            <div class="hero-actions">
+              <a href="#explorer" class="btn btn-primary">
+                ${Components.getIcon('search', 16)} Explore Internships (${totalJobs})
+              </a>
+              <a href="#checker" class="btn btn-secondary">
+                ${Components.getIcon('target', 16)} Check Skill Readiness
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Academic Disclaimer Banner -->
+        <div class="disclaimer-callout" role="note">
+          <div class="disclaimer-icon">${Components.getIcon('info', 20)}</div>
+          <div class="disclaimer-text">
+            <strong>Sample Disclaimer:</strong> Data reflects an exploratory curated sample of Phnom Penh tech internship listings (n = ${totalJobs}) collected for academic study.
+          </div>
+        </div>
+
+        <!-- Metric KPI Cards -->
+        <div class="kpi-grid">
+          ${Components.renderMetricCard('Total Sample Postings', totalJobs, 'Phnom Penh Tech Roles', 'briefcase')}
+          ${Components.renderMetricCard('Paid Compensation', `${allowanceCounts['Paid']} of ${totalJobs}`, `${Math.round((allowanceCounts['Paid'] / totalJobs) * 100)}% Offer Monthly Stipends`, 'dollar')}
+          ${Components.renderMetricCard('Core Role Tracks', '4 Tracks', 'Frontend, Backend, Data, QA', 'layers')}
+          ${Components.renderMetricCard('Unique Tech Skills', Object.keys(skillFrequencyMap).length, 'Mandatory & Preferred', 'target')}
+        </div>
+
+        <!-- Two Column Overview Details -->
+        <div class="overview-two-col">
+          <!-- Left: Track Distribution -->
+          <div class="card overview-card">
+            <div class="card-header">
+              <h2 class="card-heading">Postings by Role Track</h2>
+              <span class="card-subhead">Distribution of the ${totalJobs} curated opportunities</span>
+            </div>
+            <div class="card-body">
+              <div class="track-summary-list">
+                <a href="#explorer?track=Frontend" class="track-summary-item track-frontend-box">
+                  <div class="track-info">
+                    <span class="track-name">Frontend</span>
+                    <span class="track-sub">HTML5, CSS3, DOM, Responsive Web</span>
+                  </div>
+                  <span class="track-count-badge">${trackCounts['Frontend']} roles</span>
+                </a>
+
+                <a href="#explorer?track=Backend%2FFull-Stack" class="track-summary-item track-backend-box">
+                  <div class="track-info">
+                    <span class="track-name">Backend / Full-Stack</span>
+                    <span class="track-sub">Node.js, Python, SQL, REST APIs</span>
+                  </div>
+                  <span class="track-count-badge">${trackCounts['Backend/Full-Stack']} roles</span>
+                </a>
+
+                <a href="#explorer?track=Data%2FBI" class="track-summary-item track-data-box">
+                  <div class="track-info">
+                    <span class="track-name">Data / BI</span>
+                    <span class="track-sub">SQL, Excel, Python, Power BI</span>
+                  </div>
+                  <span class="track-count-badge">${trackCounts['Data/BI']} roles</span>
+                </a>
+
+                <a href="#explorer?track=QA%2FIT%20Support" class="track-summary-item track-qa-box">
+                  <div class="track-info">
+                    <span class="track-name">QA / IT Support</span>
+                    <span class="track-sub">Manual Testing, Postman, Networks</span>
+                  </div>
+                  <span class="track-count-badge">${trackCounts['QA/IT Support']} roles</span>
+                </a>
+              </div>
+
+              <!-- Allowance Mini Distribution -->
+              <div class="allowance-breakdown-box">
+                <h3 class="mini-heading">Compensation Breakdown</h3>
+                <div class="allowance-pills">
+                  <span class="badge allowance-paid">Paid: ${allowanceCounts['Paid']} roles</span>
+                  <span class="badge allowance-notstated">Stipend / Not Stated: ${allowanceCounts['Not Stated']} roles</span>
+                  <span class="badge allowance-unpaid">Unpaid: ${allowanceCounts['Unpaid']} roles</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Top Demanded Skills Chart -->
+          <div class="card overview-card">
+            <div class="card-header">
+              <h2 class="card-heading">Top 10 Demanded Skills</h2>
+              <span class="card-subhead">Frequency of appearance across Phnom Penh sample</span>
+            </div>
+            <div class="card-body">
+              <div class="skill-freq-container">
+                ${skillBarsHTML}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    `;
+  },
+
+  // =========================================================================
+  // PAGE 2: INTERNSHIP EXPLORER (#explorer)
+  // =========================================================================
+
+  renderExplorer(rootElement) {
+    rootElement.innerHTML = `
+      <section class="explorer-section" aria-labelledby="explorer-heading">
+        <div class="page-header-row">
+          <div>
+            <h1 id="explorer-heading" class="page-title">Internship Explorer</h1>
+            <p class="page-subtitle">Search, filter, and inspect ${INTERNSHIPS.length} curated opportunities across Phnom Penh tech companies.</p>
+          </div>
+          <div class="view-toggle-group" role="group" aria-label="Layout view toggle">
+            <button type="button" class="btn btn-icon ${this.state.explorerFilters.viewMode === 'grid' ? 'btn-active' : 'btn-outline'}" id="view-grid-btn" aria-label="Grid view">
+              ${Components.getIcon('grid', 16)} <span class="btn-text-responsive">Cards</span>
+            </button>
+            <button type="button" class="btn btn-icon ${this.state.explorerFilters.viewMode === 'table' ? 'btn-active' : 'btn-outline'}" id="view-table-btn" aria-label="Table view">
+              ${Components.getIcon('table', 16)} <span class="btn-text-responsive">Table</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Controls Toolbar -->
+        <div class="filter-toolbar card">
+          <div class="filter-grid">
+            <!-- Search Input -->
+            <div class="filter-field search-field">
+              <label for="filter-search" class="filter-label">Search Keywords</label>
+              <div class="input-icon-wrap">
+                <span class="input-icon">${Components.getIcon('search', 16)}</span>
+                <input 
+                  type="text" 
+                  id="filter-search" 
+                  class="form-control" 
+                  placeholder="Filter by title, company, or skill..." 
+                  value="${Components.escapeHTML(this.state.explorerFilters.search)}"
+                  autocomplete="off"
+                />
+              </div>
+            </div>
+
+            <!-- Role Track Filter -->
+            <div class="filter-field">
+              <label for="filter-track" class="filter-label">Role Track</label>
+              <select id="filter-track" class="form-control">
+                <option value="All" ${this.state.explorerFilters.track === 'All' ? 'selected' : ''}>All Tracks</option>
+                ${TRACKS.map(track => `
+                  <option value="${Components.escapeHTML(track)}" ${this.state.explorerFilters.track === track ? 'selected' : ''}>${Components.escapeHTML(track)}</option>
+                `).join('')}
+              </select>
+            </div>
+
+            <!-- Allowance Filter -->
+            <div class="filter-field">
+              <label for="filter-allowance" class="filter-label">Compensation</label>
+              <select id="filter-allowance" class="form-control">
+                <option value="All" ${this.state.explorerFilters.allowance === 'All' ? 'selected' : ''}>All Allowances</option>
+                ${ALLOWANCE_TYPES.map(type => `
+                  <option value="${Components.escapeHTML(type)}" ${this.state.explorerFilters.allowance === type ? 'selected' : ''}>${Components.escapeHTML(type)}</option>
+                `).join('')}
+              </select>
+            </div>
+          </div>
+
+          <!-- Active Filter Status & Reset -->
+          <div class="filter-status-row">
+            <span class="filter-results-count" id="results-count">Filtering postings...</span>
+            <button type="button" class="btn btn-ghost btn-xs" id="reset-filters-btn">
+              ${Components.getIcon('reset', 12)} Reset Filters
+            </button>
+          </div>
+        </div>
+
+        <!-- Dynamic Results Container -->
+        <div id="explorer-results-container" class="explorer-results-area"></div>
+      </section>
+    `;
+
+    // Attach Event Listeners to Explorer controls
+    this.attachExplorerListeners();
+
+    // Render results based on current filter state
+    this.updateExplorerResults();
+  },
+
+  attachExplorerListeners() {
+    const searchInput = document.getElementById('filter-search');
+    const trackSelect = document.getElementById('filter-track');
+    const allowanceSelect = document.getElementById('filter-allowance');
+    const resetBtn = document.getElementById('reset-filters-btn');
+    const gridBtn = document.getElementById('view-grid-btn');
+    const tableBtn = document.getElementById('view-table-btn');
+
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        this.state.explorerFilters.search = e.target.value;
+        this.updateExplorerResults();
+      });
+    }
+
+    if (trackSelect) {
+      trackSelect.addEventListener('change', (e) => {
+        this.state.explorerFilters.track = e.target.value;
+        this.updateExplorerResults();
+      });
+    }
+
+    if (allowanceSelect) {
+      allowanceSelect.addEventListener('change', (e) => {
+        this.state.explorerFilters.allowance = e.target.value;
+        this.updateExplorerResults();
+      });
+    }
+
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        this.resetExplorerFilters();
+      });
+    }
+
+    if (gridBtn) {
+      gridBtn.addEventListener('click', () => {
+        this.state.explorerFilters.viewMode = 'grid';
+        gridBtn.classList.add('btn-active');
+        gridBtn.classList.remove('btn-outline');
+        if (tableBtn) {
+          tableBtn.classList.remove('btn-active');
+          tableBtn.classList.add('btn-outline');
+        }
+        this.updateExplorerResults();
+      });
+    }
+
+    if (tableBtn) {
+      tableBtn.addEventListener('click', () => {
+        this.state.explorerFilters.viewMode = 'table';
+        tableBtn.classList.add('btn-active');
+        tableBtn.classList.remove('btn-outline');
+        if (gridBtn) {
+          gridBtn.classList.remove('btn-active');
+          gridBtn.classList.add('btn-outline');
+        }
+        this.updateExplorerResults();
+      });
+    }
+  },
+
+  resetExplorerFilters() {
+    this.state.explorerFilters.search = '';
+    this.state.explorerFilters.track = 'All';
+    this.state.explorerFilters.allowance = 'All';
+
+    const searchInput = document.getElementById('filter-search');
+    const trackSelect = document.getElementById('filter-track');
+    const allowanceSelect = document.getElementById('filter-allowance');
+
+    if (searchInput) searchInput.value = '';
+    if (trackSelect) trackSelect.value = 'All';
+    if (allowanceSelect) allowanceSelect.value = 'All';
+
+    this.updateExplorerResults();
+  },
+
+  updateExplorerResults() {
+    const resultsContainer = document.getElementById('explorer-results-container');
+    const resultsCount = document.getElementById('results-count');
+    if (!resultsContainer) return;
+
+    const searchTerm = this.state.explorerFilters.search.trim().toLowerCase();
+    const trackFilter = this.state.explorerFilters.track;
+    const allowanceFilter = this.state.explorerFilters.allowance;
+
+    // Deterministic in-memory filtering
+    const filteredJobs = INTERNSHIPS.filter(job => {
+      // Track match
+      if (trackFilter !== 'All' && job.roleTrack !== trackFilter) {
+        return false;
+      }
+
+      // Allowance match
+      if (allowanceFilter !== 'All' && job.allowance !== allowanceFilter) {
+        return false;
+      }
+
+      // Keyword match
+      if (searchTerm) {
+        const titleMatch = job.title.toLowerCase().includes(searchTerm);
+        const companyMatch = job.company.toLowerCase().includes(searchTerm);
+        const sectorMatch = job.sector.toLowerCase().includes(searchTerm);
+        const mandatorySkillMatch = job.mandatorySkills.some(skill => skill.toLowerCase().includes(searchTerm));
+        const preferredSkillMatch = job.preferredSkills.some(skill => skill.toLowerCase().includes(searchTerm));
+
+        if (!titleMatch && !companyMatch && !sectorMatch && !mandatorySkillMatch && !preferredSkillMatch) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    // Update count display
+    if (resultsCount) {
+      resultsCount.textContent = `Showing ${filteredJobs.length} of ${INTERNSHIPS.length} internships`;
+    }
+
+    // Zero-State Handling
+    if (filteredJobs.length === 0) {
+      resultsContainer.innerHTML = Components.renderEmptyState(
+        'No matching internships found',
+        'No roles matched your current search keywords and filter selections. Try clearing your filters or selecting a different track.'
+      );
+      return;
+    }
+
+    // View Rendering: Grid or Table
+    if (this.state.explorerFilters.viewMode === 'grid') {
+      const cardsHTML = filteredJobs.map(job => Components.renderInternshipCard(job)).join('');
+      resultsContainer.innerHTML = `<div class="internships-grid">${cardsHTML}</div>`;
+    } else {
+      const rowsHTML = filteredJobs.map(job => Components.renderInternshipTableRow(job)).join('');
+      resultsContainer.innerHTML = `
+        <div class="table-responsive">
+          <table class="comparison-table" aria-label="Internship Comparison Table">
+            <thead>
+              <tr>
+                <th scope="col" style="min-width: 240px;">Role & Company</th>
+                <th scope="col">Track</th>
+                <th scope="col">Compensation</th>
+                <th scope="col" style="min-width: 200px;">Mandatory Skills</th>
+                <th scope="col" style="min-width: 200px;">Preferred Skills</th>
+                <th scope="col" class="cell-action">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHTML}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+  },
+
+  // =========================================================================
+  // PAGE 3: SKILL-GAP CHECKER (#checker)
+  // =========================================================================
+
+  renderChecker(rootElement) {
+    const selectedJob = INTERNSHIPS.find(j => j.id === this.state.checker.selectedJobId);
+
+    // Group all jobs by track for organized dropdown
+    const groupedOptions = TRACKS.map(track => {
+      const jobsInTrack = INTERNSHIPS.filter(j => j.roleTrack === track);
+      const optionsHTML = jobsInTrack.map(job => `
+        <option value="${Components.escapeHTML(job.id)}" ${this.state.checker.selectedJobId === job.id ? 'selected' : ''}>
+          ${Components.escapeHTML(job.company)} – ${Components.escapeHTML(job.title)}
+        </option>
+      `).join('');
+      return `<optgroup label="${Components.escapeHTML(track)}">${optionsHTML}</optgroup>`;
+    }).join('');
+
+    rootElement.innerHTML = `
+      <section class="checker-section" aria-labelledby="checker-heading">
+        <div class="page-header-row">
+          <div>
+            <h1 id="checker-heading" class="page-title">Skill-Gap Checker</h1>
+            <p class="page-subtitle">Test your current skill set against specific Phnom Penh tech internships using deterministic weighted scoring.</p>
+          </div>
+        </div>
+
+        <!-- 2-Column Responsive Layout -->
+        <div class="checker-two-col">
+          <!-- Left Column: Form & Checkboxes -->
+          <div class="checker-left-col">
+            <div class="card checker-form-card">
+              <!-- Step 1: Job Selector -->
+              <div class="form-step-section">
+                <label for="checker-job-select" class="step-label">
+                  <span class="step-badge">Step 1</span> Select Target Internship:
+                </label>
+                <select id="checker-job-select" class="form-control form-control-lg">
+                  <option value="">-- Choose an Internship to Assess --</option>
+                  ${groupedOptions}
+                </select>
+              </div>
+
+              <!-- Step 2: Dynamic Skill Checklist -->
+              <div id="checker-skills-form-area">
+                <!-- Dynamically populated or guidance prompt -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Live Readiness Match Report -->
+          <div class="checker-right-col">
+            <div id="checker-report-card" class="card checker-report-card">
+              <!-- Dynamically populated report -->
+            </div>
+          </div>
+        </div>
+      </section>
+    `;
+
+    // Dropdown change listener
+    const jobSelect = document.getElementById('checker-job-select');
+    if (jobSelect) {
+      jobSelect.addEventListener('change', (e) => {
+        const newJobId = e.target.value;
+        if (newJobId) {
+          // Update URL hash to support browser history and deep linking
+          window.location.hash = `#checker?jobId=${encodeURIComponent(newJobId)}`;
+        } else {
+          this.state.checker.selectedJobId = null;
+          this.state.checker.checkedSkills.clear();
+          window.location.hash = '#checker';
+          this.renderCheckerSkillsAndReport();
+        }
+      });
+    }
+
+    // Render inner content
+    this.renderCheckerSkillsAndReport();
+  },
+
+  renderCheckerSkillsAndReport() {
+    const formArea = document.getElementById('checker-skills-form-area');
+    const reportCard = document.getElementById('checker-report-card');
+    if (!formArea || !reportCard) return;
+
+    const selectedJob = INTERNSHIPS.find(j => j.id === this.state.checker.selectedJobId);
+
+    // If no job is selected yet: Guidance default state
+    if (!selectedJob) {
+      formArea.innerHTML = `
+        <div class="guidance-prompt-box">
+          <div class="guidance-icon">${Components.getIcon('target', 32)}</div>
+          <h3 class="guidance-title">No Internship Selected</h3>
+          <p class="guidance-text">
+            Choose an internship from the dropdown above to display its required skills and test your current readiness score.
+          </p>
+        </div>
+      `;
+
+      reportCard.innerHTML = `
+        <div class="report-empty-state">
+          <div class="report-empty-icon">${Components.getIcon('briefcase', 36)}</div>
+          <h3 class="report-empty-title">Awaiting Selection</h3>
+          <p class="report-empty-text">
+            Your live readiness score, matched skills, and prioritized gap analysis will appear here once an internship is selected.
+          </p>
+          <div class="formula-explainer">
+            <span class="formula-title">Scoring Formula</span>
+            <code>Score = ((Matched Mandatory × 2) + (Matched Preferred × 1)) / ((Total Mandatory × 2) + (Total Preferred × 1)) × 100%</code>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    // Job Details Summary Header
+    const trackClass = Components.getTrackClass(selectedJob.roleTrack);
+    const allowanceClass = Components.getAllowanceClass(selectedJob.allowance);
+
+    // Checkbox items for Mandatory skills
+    const mandatoryInputsHTML = selectedJob.mandatorySkills.map((skill, index) => {
+      const inputId = `skill-mand-${index}`;
+      const isChecked = this.state.checker.checkedSkills.has(skill);
+      return `
+        <div class="checkbox-item">
+          <input 
+            type="checkbox" 
+            id="${inputId}" 
+            class="skill-checkbox mandatory-checkbox" 
+            value="${Components.escapeHTML(skill)}"
+            ${isChecked ? 'checked' : ''}
+          />
+          <label for="${inputId}" class="checkbox-label">
+            <span class="checkbox-custom-mark" aria-hidden="true">${Components.getIcon('check', 12)}</span>
+            <span class="skill-name">${Components.escapeHTML(skill)}</span>
+            <span class="skill-weight-tag weight-mandatory">2 pts (Mandatory)</span>
+          </label>
+        </div>
+      `;
+    }).join('');
+
+    // Checkbox items for Preferred skills
+    const preferredInputsHTML = selectedJob.preferredSkills.length > 0
+      ? selectedJob.preferredSkills.map((skill, index) => {
+          const inputId = `skill-pref-${index}`;
+          const isChecked = this.state.checker.checkedSkills.has(skill);
+          return `
+            <div class="checkbox-item">
+              <input 
+                type="checkbox" 
+                id="${inputId}" 
+                class="skill-checkbox preferred-checkbox" 
+                value="${Components.escapeHTML(skill)}"
+                ${isChecked ? 'checked' : ''}
+              />
+              <label for="${inputId}" class="checkbox-label">
+                <span class="checkbox-custom-mark" aria-hidden="true">${Components.getIcon('check', 12)}</span>
+                <span class="skill-name">${Components.escapeHTML(skill)}</span>
+                <span class="skill-weight-tag weight-preferred">1 pt (Preferred)</span>
+              </label>
+            </div>
+          `;
+        }).join('')
+      : `<p class="text-muted text-sm">No optional preferred skills specified for this posting.</p>`;
+
+    formArea.innerHTML = `
+      <div class="selected-job-summary">
+        <div class="summary-top-row">
+          <span class="badge badge-track ${trackClass}">${Components.escapeHTML(selectedJob.roleTrack)}</span>
+          <span class="badge badge-allowance ${allowanceClass}">${Components.escapeHTML(selectedJob.allowance)}</span>
+        </div>
+        <h2 class="summary-title">${Components.escapeHTML(selectedJob.title)}</h2>
+        <div class="summary-company">${Components.escapeHTML(selectedJob.company)} • ${Components.escapeHTML(selectedJob.sector)}</div>
+        <div class="summary-salary">Stipend: ${Components.escapeHTML(selectedJob.salary)}</div>
+      </div>
+
+      <!-- Step 2 Instruction & Quick Select Tools -->
+      <div class="skills-form-header">
+        <div>
+          <span class="step-badge">Step 2</span>
+          <span class="step-instruction">Check all skills you currently possess:</span>
+        </div>
+        <div class="batch-buttons">
+          <button type="button" class="btn btn-ghost btn-xs" id="btn-select-all">Select All</button>
+          <button type="button" class="btn btn-ghost btn-xs" id="btn-clear-all">Clear All</button>
+        </div>
+      </div>
+
+      <form id="skills-assessment-form" onsubmit="event.preventDefault();">
+        <!-- Mandatory Skills Fieldset -->
+        <fieldset class="skills-fieldset mandatory-fieldset">
+          <legend class="skills-legend">
+            ${Components.getIcon('alert', 14)} Mandatory Core Skills (Weight: 2x)
+          </legend>
+          <div class="checkbox-group">
+            ${mandatoryInputsHTML}
+          </div>
+        </fieldset>
+
+        <!-- Preferred Skills Fieldset -->
+        <fieldset class="skills-fieldset preferred-fieldset">
+          <legend class="skills-legend">
+            ${Components.getIcon('target', 14)} Preferred / Bonus Skills (Weight: 1x)
+          </legend>
+          <div class="checkbox-group">
+            ${preferredInputsHTML}
+          </div>
+        </fieldset>
+      </form>
+    `;
+
+    // Attach checkbox listeners
+    const checkboxes = formArea.querySelectorAll('.skill-checkbox');
+    checkboxes.forEach(box => {
+      box.addEventListener('change', (e) => {
+        const skill = e.target.value;
+        if (e.target.checked) {
+          this.state.checker.checkedSkills.add(skill);
+        } else {
+          this.state.checker.checkedSkills.delete(skill);
+        }
+        this.updateLiveReport(selectedJob);
+      });
+    });
+
+    // Batch buttons
+    const selectAllBtn = document.getElementById('btn-select-all');
+    const clearAllBtn = document.getElementById('btn-clear-all');
+
+    if (selectAllBtn) {
+      selectAllBtn.addEventListener('click', () => {
+        selectedJob.mandatorySkills.forEach(s => this.state.checker.checkedSkills.add(s));
+        selectedJob.preferredSkills.forEach(s => this.state.checker.checkedSkills.add(s));
+        this.renderCheckerSkillsAndReport();
+      });
+    }
+
+    if (clearAllBtn) {
+      clearAllBtn.addEventListener('click', () => {
+        this.state.checker.checkedSkills.clear();
+        this.renderCheckerSkillsAndReport();
+      });
+    }
+
+    // Initial calculation of the live report
+    this.updateLiveReport(selectedJob);
+  },
+
+  /**
+   * Deterministic scoring engine & live match report renderer.
+   * Guarded against division-by-zero (0/0 = NaN).
+   */
+  updateLiveReport(job) {
+    const reportCard = document.getElementById('checker-report-card');
+    if (!reportCard || !job) return;
+
+    const totalMandatory = job.mandatorySkills.length;
+    const totalPreferred = job.preferredSkills.length;
+
+    // Filter matched skills
+    const matchedMandatorySkills = job.mandatorySkills.filter(s => this.state.checker.checkedSkills.has(s));
+    const matchedPreferredSkills = job.preferredSkills.filter(s => this.state.checker.checkedSkills.has(s));
+
+    // Filter missing skills
+    const missingMandatorySkills = job.mandatorySkills.filter(s => !this.state.checker.checkedSkills.has(s));
+    const missingPreferredSkills = job.preferredSkills.filter(s => !this.state.checker.checkedSkills.has(s));
+
+    const matchedMandatoryCount = matchedMandatorySkills.length;
+    const matchedPreferredCount = matchedPreferredSkills.length;
+
+    // Weighted calculations
+    const earnedPoints = (matchedMandatoryCount * 2) + (matchedPreferredCount * 1);
+    const totalPoints = (totalMandatory * 2) + (totalPreferred * 1);
+
+    // Division by zero guard
+    const scorePercentage = totalPoints > 0 
+      ? Math.round((earnedPoints / totalPoints) * 100) 
+      : 0;
+
+    // Readiness Tier Classification
+    let readinessTier = {
+      label: 'Preparation Required',
+      class: 'tier-low',
+      description: 'Critical mandatory skills are missing. Focus on the core foundational skills first.'
+    };
+
+    if (scorePercentage >= 80) {
+      readinessTier = {
+        label: 'Ready to Apply',
+        class: 'tier-high',
+        description: 'Excellent match! You possess the primary core competencies required for this position.'
+      };
+    } else if (scorePercentage >= 50) {
+      readinessTier = {
+        label: 'Good Foundation – Bridge Gaps',
+        class: 'tier-mid',
+        description: 'You meet multiple core prerequisites. Review the missing mandatory items before applying.'
+      };
+    }
+
+    // Gauge circle stroke-dasharray math (Circumference of r=52 is 2 * PI * 52 ≈ 326.7)
+    const radius = 52;
+    const circumference = 2 * Math.PI * radius;
+    const strokeDashoffset = circumference - (scorePercentage / 100) * circumference;
+
+    // Render Matched Skills List
+    const allMatchedSkills = [...matchedMandatorySkills, ...matchedPreferredSkills];
+    const matchedSkillsHTML = allMatchedSkills.length > 0
+      ? allMatchedSkills.map(s => {
+          const isMandatory = job.mandatorySkills.includes(s);
+          return `
+            <li class="matched-item">
+              <span class="match-icon">${Components.getIcon('check', 14)}</span>
+              <span class="match-name">${Components.escapeHTML(s)}</span>
+              <span class="match-type-tag ${isMandatory ? 'tag-mand' : 'tag-pref'}">${isMandatory ? 'Mandatory (+2)' : 'Preferred (+1)'}</span>
+            </li>
+          `;
+        }).join('')
+      : `<p class="empty-list-note">No required skills selected yet.</p>`;
+
+    // Render Missing Skills List: Missing Mandatory ALWAYS rendered first with high-priority warning
+    let missingSkillsHTML = '';
+    if (missingMandatorySkills.length === 0 && missingPreferredSkills.length === 0) {
+      missingSkillsHTML = `
+        <div class="all-skills-matched-banner">
+          ${Components.getIcon('check', 20)}
+          <div>
+            <strong>100% Requirements Matched!</strong>
+            <p>You have checked every mandatory and preferred skill listed for this role.</p>
+          </div>
+        </div>
+      `;
+    } else {
+      const missingMandatoryHTML = missingMandatorySkills.map(s => `
+        <li class="missing-item missing-item-mandatory">
+          <span class="missing-icon">${Components.getIcon('alert', 14)}</span>
+          <div class="missing-text-group">
+            <span class="missing-name">${Components.escapeHTML(s)}</span>
+            <span class="missing-badge-urgent">Mandatory – Must Acquire</span>
+          </div>
+        </li>
+      `).join('');
+
+      const missingPreferredHTML = missingPreferredSkills.map(s => `
+        <li class="missing-item missing-item-preferred">
+          <span class="missing-icon">${Components.getIcon('target', 14)}</span>
+          <div class="missing-text-group">
+            <span class="missing-name">${Components.escapeHTML(s)}</span>
+            <span class="missing-badge-bonus">Preferred – Recommended</span>
+          </div>
+        </li>
+      `).join('');
+
+      missingSkillsHTML = `
+        <ul class="missing-skills-list">
+          ${missingMandatoryHTML}
+          ${missingPreferredHTML}
+        </ul>
+      `;
+    }
+
+    reportCard.innerHTML = `
+      <div class="report-header">
+        <h2 class="report-heading">Live Readiness Score</h2>
+        <span class="badge ${readinessTier.class}">${Components.escapeHTML(readinessTier.label)}</span>
+      </div>
+
+      <!-- Circular Progress Gauge -->
+      <div class="gauge-display-wrap">
+        <svg class="progress-ring" width="130" height="130" viewBox="0 0 130 130" aria-label="Readiness score: ${scorePercentage}%">
+          <circle 
+            class="progress-ring-bg" 
+            stroke-width="10" 
+            cx="65" 
+            cy="65" 
+            r="${radius}" 
+            fill="transparent"
+          />
+          <circle 
+            class="progress-ring-indicator ${readinessTier.class}" 
+            stroke-width="10" 
+            stroke-dasharray="${circumference}" 
+            stroke-dashoffset="${strokeDashoffset}" 
+            stroke-linecap="round" 
+            cx="65" 
+            cy="65" 
+            r="${radius}" 
+            fill="transparent"
+          />
+        </svg>
+        <div class="gauge-center-text">
+          <span class="gauge-percentage">${scorePercentage}%</span>
+          <span class="gauge-label">Match</span>
+        </div>
+      </div>
+
+      <!-- Mathematical breakdown -->
+      <div class="report-points-breakdown">
+        <div class="points-row">
+          <span class="points-label">Weighted Score:</span>
+          <strong class="points-value">${earnedPoints} / ${totalPoints} pts</strong>
+        </div>
+        <div class="points-sub-row">
+          <span>Mandatory: ${matchedMandatoryCount}/${totalMandatory} matched (×2)</span>
+          <span>Preferred: ${matchedPreferredCount}/${totalPreferred} matched (×1)</span>
+        </div>
+        <p class="tier-guidance-text">${Components.escapeHTML(readinessTier.description)}</p>
+      </div>
+
+      <!-- Missing Skills Breakdown (Prioritizing Mandatory) -->
+      <div class="report-section missing-section">
+        <h3 class="section-subheading">
+          Skill Gaps (${missingMandatorySkills.length + missingPreferredSkills.length} missing)
+        </h3>
+        ${missingSkillsHTML}
+      </div>
+
+      <!-- Matched Skills Breakdown -->
+      <div class="report-section matched-section">
+        <h3 class="section-subheading">
+          Matched Competencies (${allMatchedSkills.length} acquired)
+        </h3>
+        <ul class="matched-skills-list">
+          ${matchedSkillsHTML}
+        </ul>
+      </div>
+    `;
+  }
 };
 
-function switchRole(role, defaultRoute) {
-  AppState.role = role;
-  if (defaultRoute) {
-    AppState.currentRoute = defaultRoute;
-  } else if (role === 'guest') {
-    AppState.currentRoute = 'landing';
-  } else if (role === 'student') {
-    AppState.currentRoute = 'student-dashboard';
-  } else if (role === 'company') {
-    AppState.currentRoute = 'company-dashboard';
-  } else if (role === 'admin') {
-    AppState.currentRoute = 'admin-dashboard';
-  } else if (role === 'design-system') {
-    AppState.currentRoute = 'design-system';
-  }
-  UIState.sidebarOpen = false;
-  saveAppState();
-  renderApp();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+// Expose on global window object for clean inline event handler support
+window.InternLensApp = InternLensApp;
 
-function renderPrototypeBar() {
-  const r = AppState.role;
-  return `
-    <div class="prototype-bar">
-      <div class="prototype-bar-left">
-        <span class="prototype-badge">CAREERCONNECT UI/UX</span>
-        <div class="prototype-roles">
-          <button type="button" class="role-switch-btn ${r === 'guest' ? 'active' : ''}" data-switch-role="guest" data-nav="landing">Landing / Public</button>
-          <button type="button" class="role-switch-btn ${r === 'student' ? 'active' : ''}" data-switch-role="student" data-nav="student-dashboard">Student Portal</button>
-          <button type="button" class="role-switch-btn ${r === 'company' ? 'active' : ''}" data-switch-role="company" data-nav="company-dashboard">Company Portal</button>
-          <button type="button" class="role-switch-btn ${r === 'admin' ? 'active' : ''}" data-switch-role="admin" data-nav="admin-dashboard">Admin Dashboard</button>
-        </div>
-      </div>
-      <div class="prototype-bar-right">
-        <button type="button" class="role-switch-btn ${r === 'design-system' ? 'active' : ''}" data-switch-role="design-system" data-nav="design-system">
-          ${icon('palette')} Design System & Mobile
-        </button>
-        <button type="button" class="proto-action-btn" id="reset-demo-btn" title="Restore initial sample data">
-          Reset Demo
-        </button>
-      </div>
-    </div>
-  `;
-}
-
-function renderPortalShell(contentHtml) {
-  const role = AppState.role;
-  const route = AppState.currentRoute;
-  const student = getStudent(AppState.currentStudentId);
-  const company = getCompany(AppState.currentCompanyId);
-
-  let navItems = [];
-  let roleLabel = '';
-  let profileBadgeHtml = '';
-
-  if (role === 'student') {
-    roleLabel = 'Student Account';
-    const appCount = AppState.applications.filter(a => a.studentId === student.id).length;
-    const savedCount = AppState.savedJobIds.length;
-    navItems = [
-      { id: 'student-dashboard', label: 'Dashboard', icon: 'home' },
-      { id: 'student-jobs', label: 'Find Jobs', icon: 'search' },
-      { id: 'student-applications', label: 'My Applications', icon: 'fileText', count: appCount },
-      { id: 'student-saved', label: 'Saved Jobs', icon: 'bookmark', count: savedCount },
-      { id: 'student-profile', label: 'My Profile', icon: 'user' }
-    ];
-    profileBadgeHtml = `
-      <div class="items-center" style="gap:10px;">
-        <div class="user-avatar" style="width:36px;height:36px;font-size:0.8rem;">${escapeHtml(student.initials)}</div>
-        <div class="text-xs">
-          <div class="font-semibold" style="color:var(--color-secondary);">${escapeHtml(student.fullName)}</div>
-          <div class="text-muted">CADT Student</div>
-        </div>
-      </div>
-    `;
-  } else if (role === 'company') {
-    roleLabel = 'Employer Portal';
-    const myJobIds = new Set(AppState.jobs.filter(j => j.companyId === company.id).map(j => j.id));
-    const appCount = AppState.applications.filter(a => myJobIds.has(a.jobId)).length;
-    navItems = [
-      { id: 'company-dashboard', label: 'Company Dashboard', icon: 'home' },
-      { id: 'company-post-job', label: 'Post a Job', icon: 'plus' },
-      { id: 'company-applicants', label: 'Manage Applicants', icon: 'users', count: appCount }
-    ];
-    profileBadgeHtml = `
-      <div class="items-center" style="gap:10px;">
-        <div class="company-logo" style="width:36px;height:36px;font-size:0.78rem;background:${company.color}">${escapeHtml(company.initials)}</div>
-        <div class="text-xs">
-          <div class="font-semibold" style="color:var(--color-secondary);">${escapeHtml(company.name)}</div>
-          <div class="text-muted">Verified Employer</div>
-        </div>
-      </div>
-    `;
-  } else if (role === 'admin') {
-    roleLabel = 'Administrator';
-    navItems = [
-      { id: 'admin-dashboard', label: 'Overview & Stats', icon: 'barChart', adminTab: 'overview' },
-      { id: 'admin-students', label: 'Manage Students', icon: 'graduation', adminTab: 'students' },
-      { id: 'admin-companies', label: 'Manage Companies', icon: 'building', adminTab: 'companies' },
-      { id: 'admin-jobs', label: 'Manage Job Postings', icon: 'briefcase', adminTab: 'jobs' },
-      { id: 'admin-categories', label: 'Manage Categories', icon: 'layers', adminTab: 'categories' }
-    ];
-    profileBadgeHtml = `
-      <div class="items-center" style="gap:10px;">
-        <div class="user-avatar" style="width:36px;height:36px;font-size:0.8rem;background:var(--color-secondary);">AD</div>
-        <div class="text-xs">
-          <div class="font-semibold" style="color:var(--color-secondary);">Admin Console</div>
-          <div class="text-muted">CADT Career Center</div>
-        </div>
-      </div>
-    `;
-  }
-
-  return `
-    <div class="portal-shell">
-      <div class="sidebar-backdrop ${UIState.sidebarOpen ? 'open' : ''}" id="sidebar-backdrop"></div>
-      <aside class="portal-sidebar ${UIState.sidebarOpen ? 'open' : ''}">
-        <div class="sidebar-brand">
-          ${renderBrandLogo(true)}
-          <div><span class="sidebar-role-pill">${roleLabel}</span></div>
-        </div>
-
-        <nav class="sidebar-nav" aria-label="Portal Navigation">
-          ${navItems.map(item => {
-            const isActive = role === 'admin'
-              ? UIState.adminTab === item.adminTab
-              : route === item.id || (route === 'student-job-details' && item.id === 'student-jobs');
-            return `
-              <button type="button"
-                class="sidebar-item ${isActive ? 'active' : ''}"
-                ${item.adminTab ? `data-admin-tab="${item.adminTab}"` : `data-nav="${item.id}"`}>
-                <span class="sidebar-item-left">${icon(item.icon)} ${escapeHtml(item.label)}</span>
-                ${typeof item.count === 'number' ? `<span class="sidebar-count">${item.count}</span>` : ''}
-              </button>
-            `;
-          }).join('')}
-        </nav>
-
-        <div class="sidebar-footer">
-          <button type="button" class="sidebar-item" data-switch-role="guest" data-nav="landing">
-            <span class="sidebar-item-left">${icon('logout')} Back to Public Site</span>
-          </button>
-        </div>
-      </aside>
-
-      <div class="portal-main">
-        <header class="portal-topbar">
-          <div class="items-center" style="gap:12px;">
-            <button type="button" class="mobile-menu-toggle" id="portal-mobile-toggle" aria-label="Open Navigation">
-              ${icon('menu')}
-            </button>
-            <span class="text-sm font-medium text-muted">${roleLabel}</span>
-          </div>
-          <div class="items-center" style="gap:14px;">
-            ${profileBadgeHtml}
-          </div>
-        </header>
-
-        <main class="portal-content">
-          ${contentHtml}
-        </main>
-      </div>
-    </div>
-  `;
-}
-
-function renderApp() {
-  const root = document.getElementById('app-root');
-  const route = AppState.currentRoute;
-  const role = AppState.role;
-  let bodyHtml = '';
-
-  if (role === 'design-system' || route === 'design-system') {
-    bodyHtml = renderDesignSystemPage(UIState.mobilePreviewTab);
-  } else if (role === 'guest') {
-    if (route === 'public-jobs') bodyHtml = renderFindJobsPage(true);
-    else if (route === 'public-job-details') bodyHtml = renderJobDetailsPage(true);
-    else if (route === 'companies') bodyHtml = renderCompaniesDirectoryPage();
-    else if (route === 'about') bodyHtml = renderAboutPage();
-    else bodyHtml = renderLandingPage();
-  } else if (role === 'student') {
-    let page = '';
-    if (route === 'student-jobs') page = renderFindJobsPage(false);
-    else if (route === 'student-job-details') page = renderJobDetailsPage(false);
-    else if (route === 'student-profile') page = renderStudentProfilePage();
-    else if (route === 'student-applications') page = renderMyApplicationsPage(UIState.appStatusTab);
-    else if (route === 'student-saved') page = renderSavedJobsPage();
-    else page = renderStudentDashboard();
-    bodyHtml = renderPortalShell(page);
-  } else if (role === 'company') {
-    let page = '';
-    if (route === 'company-post-job') page = renderPostJobPage();
-    else if (route === 'company-applicants') page = renderManageApplicantsPage(UIState.applicantJobFilter, UIState.applicantStatusFilter);
-    else page = renderCompanyDashboard();
-    bodyHtml = renderPortalShell(page);
-  } else if (role === 'admin') {
-    bodyHtml = renderPortalShell(renderAdminDashboard(UIState.adminTab, UIState.adminSearch));
-  }
-
-  root.innerHTML = renderPrototypeBar() + bodyHtml;
-  attachDynamicHandlers();
-}
-
-function handleApplicantDecision(appId, decision) {
-  const app = AppState.applications.find(a => a.id === appId);
-  if (!app) return;
-  const stu = getStudent(app.studentId);
-  showConfirmDialog({
-    title: `${decision === 'Accepted' ? 'Accept' : 'Reject'} Candidate`,
-    message: `Are you sure you want to mark ${stu.fullName}'s application as "${decision}"?`,
-    confirmLabel: decision === 'Accepted' ? 'Confirm Accept' : 'Confirm Reject',
-    danger: decision === 'Rejected',
-    onConfirm: () => {
-      app.status = decision;
-      app.timeline.push({
-        date: new Date().toISOString().slice(0, 10),
-        label: decision === 'Accepted' ? 'Accepted by Hiring Team' : 'Application Not Selected'
-      });
-      saveAppState();
-      showToast(`${stu.fullName} marked as ${decision}.`, decision === 'Accepted' ? 'success' : 'info');
-      renderApp();
-    }
-  });
-}
-
-function attachDynamicHandlers() {
-  // Public mobile menu toggle
-  const pubToggle = document.getElementById('public-mobile-toggle');
-  if (pubToggle) {
-    pubToggle.onclick = () => {
-      document.getElementById('public-nav').classList.toggle('mobile-open');
-    };
-  }
-
-  // Portal mobile sidebar toggle
-  const portalToggle = document.getElementById('portal-mobile-toggle');
-  if (portalToggle) {
-    portalToggle.onclick = () => {
-      UIState.sidebarOpen = !UIState.sidebarOpen;
-      renderApp();
-    };
-  }
-  const backdrop = document.getElementById('sidebar-backdrop');
-  if (backdrop) {
-    backdrop.onclick = () => {
-      UIState.sidebarOpen = false;
-      renderApp();
-    };
-  }
-
-  // Auth triggers
-  const loginBtn = document.getElementById('open-login-btn');
-  if (loginBtn) loginBtn.onclick = () => openAuthModal('login');
-  const signupBtn = document.getElementById('open-signup-btn');
-  if (signupBtn) signupBtn.onclick = () => openAuthModal('signup');
-
-  // Reset demo data
-  const resetBtn = document.getElementById('reset-demo-btn');
-  if (resetBtn) {
-    resetBtn.onclick = () => {
-      showConfirmDialog({
-        title: 'Reset Demo Data',
-        message: 'Restore all sample jobs, applications, saved jobs, and CADT student profiles to their defaults?',
-        confirmLabel: 'Reset Data',
-        onConfirm: () => {
-          resetAppState();
-          UIState.appStatusTab = 'All';
-          UIState.applicantJobFilter = 'All';
-          UIState.applicantStatusFilter = 'All';
-          UIState.adminTab = 'overview';
-          UIState.adminSearch = '';
-          showToast('Demo data restored to defaults.', 'info');
-          renderApp();
-        }
-      });
-    };
-  }
-
-  // Hero search form
-  const heroForm = document.getElementById('hero-search-form');
-  if (heroForm) {
-    heroForm.onsubmit = (e) => {
-      e.preventDefault();
-      AppState.jobFilters.search = document.getElementById('hero-search-input').value;
-      AppState.jobFilters.location = document.getElementById('hero-location-select').value;
-      AppState.currentRoute = 'public-jobs';
-      saveAppState();
-      renderApp();
-    };
-  }
-
-  // Find Jobs search & filters
-  const jobSearchInput = document.getElementById('job-search-input');
-  if (jobSearchInput) {
-    jobSearchInput.oninput = (e) => {
-      AppState.jobFilters.search = e.target.value;
-      saveAppState();
-      const pos = e.target.selectionStart;
-      renderApp();
-      const refreshed = document.getElementById('job-search-input');
-      if (refreshed) {
-        refreshed.focus();
-        refreshed.setSelectionRange(pos, pos);
-      }
-    };
-  }
-  const bindFilter = (id, key) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.onchange = (e) => {
-        AppState.jobFilters[key] = e.target.value;
-        saveAppState();
-        renderApp();
-      };
-    }
-  };
-  bindFilter('filter-category', 'category');
-  bindFilter('filter-location', 'location');
-  bindFilter('filter-jobtype', 'jobType');
-  bindFilter('filter-experience', 'experience');
-  bindFilter('filter-skill', 'skill');
-
-  ['reset-job-filters-btn', 'clear-filters-link', 'empty-reset-filters-btn'].forEach(id => {
-    const btn = document.getElementById(id);
-    if (btn) {
-      btn.onclick = () => {
-        AppState.jobFilters = { search: '', category: 'All', location: 'All', jobType: 'All', experience: 'All', skill: '' };
-        saveAppState();
-        renderApp();
-      };
-    }
-  });
-
-  // Student Profile actions
-  const addSkillForm = document.getElementById('add-skill-form');
-  if (addSkillForm) {
-    addSkillForm.onsubmit = (e) => {
-      e.preventDefault();
-      const val = document.getElementById('new-skill-input').value.trim();
-      const stu = getStudent(AppState.currentStudentId);
-      if (val && !stu.skills.includes(val)) {
-        stu.skills.push(val);
-        saveAppState();
-        showToast(`Added skill "${val}" to your profile.`);
-        renderApp();
-      }
-    };
-  }
-
-  const cvInput = document.getElementById('cv-file-input');
-  if (cvInput) {
-    cvInput.onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const stu = getStudent(AppState.currentStudentId);
-      stu.cv = {
-        fileName: file.name,
-        fileSize: Math.max(1, Math.round(file.size / 1024)) + ' KB',
-        uploadedAt: new Date().toISOString().slice(0, 10)
-      };
-      saveAppState();
-      showToast(`Uploaded CV: ${file.name}`);
-      renderApp();
-    };
-  }
-
-  const previewMyCv = document.getElementById('preview-my-cv-btn');
-  if (previewMyCv) {
-    previewMyCv.onclick = () => {
-      const stu = getStudent(AppState.currentStudentId);
-      openModal({
-        title: `Resume Preview — ${stu.cv.fileName}`,
-        bodyHtml: `
-          <div class="card card-compact" style="background:var(--color-bg);box-shadow:none;">
-            <h3>${escapeHtml(stu.fullName)}</h3>
-            <p class="text-xs text-muted">${escapeHtml(stu.university)} • ${escapeHtml(stu.major)}</p>
-            <p class="text-sm mt-md">${escapeHtml(stu.bio)}</p>
-            <div class="mt-md"><strong>Skills:</strong> ${stu.skills.map(escapeHtml).join(', ')}</div>
-          </div>
-        `,
-        footerHtml: `<button type="button" class="btn btn-primary" onclick="closeModal()">Done</button>`
-      });
-    };
-  }
-
-  const removeMyCv = document.getElementById('remove-my-cv-btn');
-  if (removeMyCv) {
-    removeMyCv.onclick = () => {
-      showConfirmDialog({
-        title: 'Remove Uploaded CV',
-        message: 'Are you sure you want to remove your current CV file? You can upload a replacement anytime.',
-        confirmLabel: 'Remove CV',
-        danger: true,
-        onConfirm: () => {
-          const stu = getStudent(AppState.currentStudentId);
-          stu.cv = null;
-          saveAppState();
-          showToast('CV removed from profile.', 'info');
-          renderApp();
-        }
-      });
-    };
-  }
-
-  const editProfileBtn = document.getElementById('edit-student-profile-btn');
-  if (editProfileBtn) {
-    editProfileBtn.onclick = () => {
-      const stu = getStudent(AppState.currentStudentId);
-      openModal({
-        title: 'Edit Student Profile',
-        bodyHtml: `
-          <form id="edit-profile-form">
-            <div class="form-group">
-              <label class="form-label">Full Name</label>
-              <input type="text" class="form-control" id="ep-name" value="${escapeHtml(stu.fullName)}" required />
-            </div>
-            <div class="grid grid-2">
-              <div class="form-group">
-                <label class="form-label">University</label>
-                <input type="text" class="form-control" id="ep-uni" value="${escapeHtml(stu.university)}" required />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Major</label>
-                <input type="text" class="form-control" id="ep-major" value="${escapeHtml(stu.major)}" required />
-              </div>
-            </div>
-            <div class="grid grid-2">
-              <div class="form-group">
-                <label class="form-label">Year / Class</label>
-                <input type="text" class="form-control" id="ep-year" value="${escapeHtml(stu.year)}" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">GPA</label>
-                <input type="text" class="form-control" id="ep-gpa" value="${escapeHtml(stu.gpa)}" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Headline</label>
-              <input type="text" class="form-control" id="ep-headline" value="${escapeHtml(stu.headline)}" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">About / Bio</label>
-              <textarea class="form-control" id="ep-bio">${escapeHtml(stu.bio)}</textarea>
-            </div>
-            <button type="submit" class="btn btn-primary btn-block">Save Profile Changes</button>
-          </form>
-        `
-      });
-      document.getElementById('edit-profile-form').onsubmit = (e) => {
-        e.preventDefault();
-        stu.fullName = document.getElementById('ep-name').value.trim();
-        stu.initials = stu.fullName.split(' ').map(x => x[0]).join('').slice(0, 2).toUpperCase();
-        stu.university = document.getElementById('ep-uni').value.trim();
-        stu.major = document.getElementById('ep-major').value.trim();
-        stu.year = document.getElementById('ep-year').value.trim();
-        stu.gpa = document.getElementById('ep-gpa').value.trim();
-        stu.headline = document.getElementById('ep-headline').value.trim();
-        stu.bio = document.getElementById('ep-bio').value.trim();
-        saveAppState();
-        closeModal();
-        showToast('Student profile updated successfully!');
-        renderApp();
-      };
-    };
-  }
-
-  const addExpBtn = document.getElementById('add-exp-btn');
-  if (addExpBtn) {
-    addExpBtn.onclick = () => {
-      openModal({
-        title: 'Add Work Experience',
-        bodyHtml: `
-          <form id="add-exp-form">
-            <div class="form-group">
-              <label class="form-label">Role / Title</label>
-              <input type="text" class="form-control" id="ex-role" placeholder="e.g. Web Development Intern" required />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Organization / Company</label>
-              <input type="text" class="form-control" id="ex-org" placeholder="e.g. CADT Innovation Center" required />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Period</label>
-              <input type="text" class="form-control" id="ex-period" placeholder="e.g. Jun 2026 – Sep 2026" required />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Summary</label>
-              <textarea class="form-control" id="ex-details" placeholder="What did you build or achieve?"></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary btn-block">Add Experience</button>
-          </form>
-        `
-      });
-      document.getElementById('add-exp-form').onsubmit = (e) => {
-        e.preventDefault();
-        const stu = getStudent(AppState.currentStudentId);
-        stu.experience.unshift({
-          role: document.getElementById('ex-role').value.trim(),
-          org: document.getElementById('ex-org').value.trim(),
-          period: document.getElementById('ex-period').value.trim(),
-          details: document.getElementById('ex-details').value.trim()
-        });
-        saveAppState();
-        closeModal();
-        showToast('Work experience added.');
-        renderApp();
-      };
-    };
-  }
-
-  const addProjBtn = document.getElementById('add-project-btn');
-  if (addProjBtn) {
-    addProjBtn.onclick = () => {
-      openModal({
-        title: 'Add Portfolio Project',
-        bodyHtml: `
-          <form id="add-proj-form">
-            <div class="form-group">
-              <label class="form-label">Project Name</label>
-              <input type="text" class="form-control" id="pr-name" placeholder="e.g. Smart Attendance System" required />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Tech Stack</label>
-              <input type="text" class="form-control" id="pr-tech" placeholder="e.g. Node.js, MySQL, React" required />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Repository / Live URL</label>
-              <input type="text" class="form-control" id="pr-link" placeholder="github.com/username/repo" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Description</label>
-              <textarea class="form-control" id="pr-summary" required></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary btn-block">Add Project</button>
-          </form>
-        `
-      });
-      document.getElementById('add-proj-form').onsubmit = (e) => {
-        e.preventDefault();
-        const stu = getStudent(AppState.currentStudentId);
-        stu.projects.unshift({
-          name: document.getElementById('pr-name').value.trim(),
-          tech: document.getElementById('pr-tech').value.trim(),
-          link: document.getElementById('pr-link').value.trim() || 'github.com/cadt-student',
-          summary: document.getElementById('pr-summary').value.trim()
-        });
-        saveAppState();
-        closeModal();
-        showToast('Project added to your portfolio!');
-        renderApp();
-      };
-    };
-  }
-
-  // Company: Post a Job Form
-  const postJobForm = document.getElementById('post-job-form');
-  if (postJobForm) {
-    postJobForm.onsubmit = (e) => {
-      e.preventDefault();
-      const newJob = {
-        id: 'job-' + Date.now(),
-        companyId: AppState.currentCompanyId,
-        title: document.getElementById('pj-title').value.trim(),
-        category: document.getElementById('pj-category').value,
-        location: document.getElementById('pj-location').value.trim(),
-        jobType: document.getElementById('pj-type').value,
-        experienceLevel: document.getElementById('pj-exp').value,
-        salary: document.getElementById('pj-salary').value.trim(),
-        postedDate: new Date().toISOString().slice(0, 10),
-        deadline: document.getElementById('pj-deadline').value,
-        featured: true,
-        status: 'Active',
-        skills: document.getElementById('pj-skills').value.split(',').map(s => s.trim()).filter(Boolean),
-        description: document.getElementById('pj-description').value.trim(),
-        responsibilities: ['Collaborate with cross-functional engineering and product teams.', 'Deliver clean, well-documented code and weekly progress demos.'],
-        qualifications: document.getElementById('pj-qualifications').value.split('\n').map(s => s.trim()).filter(Boolean)
-      };
-      AppState.jobs.unshift(newJob);
-      saveAppState();
-      showToast(`Job "${newJob.title}" published live!`);
-      AppState.currentRoute = 'company-dashboard';
-      renderApp();
-    };
-  }
-
-  // Company: Edit Company Modal
-  const editCompBtn = document.getElementById('edit-company-profile-btn');
-  if (editCompBtn) {
-    editCompBtn.onclick = () => {
-      const comp = getCompany(AppState.currentCompanyId);
-      openModal({
-        title: 'Edit Company Profile',
-        bodyHtml: `
-          <form id="edit-company-form">
-            <div class="form-group">
-              <label class="form-label">Company Name</label>
-              <input type="text" class="form-control" id="ec-name" value="${escapeHtml(comp.name)}" required />
-            </div>
-            <div class="grid grid-2">
-              <div class="form-group">
-                <label class="form-label">Industry</label>
-                <input type="text" class="form-control" id="ec-ind" value="${escapeHtml(comp.industry)}" required />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Location</label>
-                <input type="text" class="form-control" id="ec-loc" value="${escapeHtml(comp.location)}" required />
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Description</label>
-              <textarea class="form-control" id="ec-desc">${escapeHtml(comp.description)}</textarea>
-            </div>
-            <button type="submit" class="btn btn-primary btn-block">Save Company Info</button>
-          </form>
-        `
-      });
-      document.getElementById('edit-company-form').onsubmit = (e) => {
-        e.preventDefault();
-        comp.name = document.getElementById('ec-name').value.trim();
-        comp.industry = document.getElementById('ec-ind').value.trim();
-        comp.location = document.getElementById('ec-loc').value.trim();
-        comp.description = document.getElementById('ec-desc').value.trim();
-        saveAppState();
-        closeModal();
-        showToast('Company profile updated.');
-        renderApp();
-      };
-    };
-  }
-
-  // Company: Applicant Filters
-  const appJobFilter = document.getElementById('applicant-job-filter');
-  if (appJobFilter) {
-    appJobFilter.onchange = (e) => {
-      UIState.applicantJobFilter = e.target.value;
-      renderApp();
-    };
-  }
-  const appStatusFilter = document.getElementById('applicant-status-filter');
-  if (appStatusFilter) {
-    appStatusFilter.onchange = (e) => {
-      UIState.applicantStatusFilter = e.target.value;
-      renderApp();
-    };
-  }
-  const resetAppFiltersBtn = document.getElementById('reset-applicant-filters-btn');
-  if (resetAppFiltersBtn) {
-    resetAppFiltersBtn.onclick = () => {
-      UIState.applicantJobFilter = 'All';
-      UIState.applicantStatusFilter = 'All';
-      renderApp();
-    };
-  }
-
-  // Admin: Search & Add Category
-  const adminSearch = document.getElementById('admin-search-input');
-  if (adminSearch) {
-    adminSearch.oninput = (e) => {
-      UIState.adminSearch = e.target.value;
-      const pos = e.target.selectionStart;
-      renderApp();
-      const refreshed = document.getElementById('admin-search-input');
-      if (refreshed) {
-        refreshed.focus();
-        refreshed.setSelectionRange(pos, pos);
-      }
-    };
-  }
-  const addCatForm = document.getElementById('add-category-form');
-  if (addCatForm) {
-    addCatForm.onsubmit = (e) => {
-      e.preventDefault();
-      const name = document.getElementById('new-cat-name').value.trim();
-      const desc = document.getElementById('new-cat-desc').value.trim();
-      const iconName = document.getElementById('new-cat-icon').value;
-      AppState.categories.push({
-        id: 'cat-' + Date.now(),
-        name,
-        description: desc,
-        icon: iconName,
-        active: true
-      });
-      saveAppState();
-      showToast(`Category "${name}" created.`);
-      renderApp();
-    };
-  }
-}
-
-/* Global Delegated Click Listener */
-document.addEventListener('click', (e) => {
-  const roleSwitch = e.target.closest('[data-switch-role]');
-  const navBtn = e.target.closest('[data-nav]');
-  if (roleSwitch) {
-    switchRole(roleSwitch.dataset.switchRole, roleSwitch.dataset.nav || null);
-    return;
-  }
-  if (navBtn) {
-    AppState.currentRoute = navBtn.dataset.nav;
-    UIState.sidebarOpen = false;
-    saveAppState();
-    renderApp();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    return;
-  }
-
-  const openJobBtn = e.target.closest('[data-open-job]');
-  if (openJobBtn) {
-    AppState.selectedJobId = openJobBtn.dataset.openJob;
-    AppState.currentRoute = AppState.role === 'guest' ? 'public-job-details' : 'student-job-details';
-    saveAppState();
-    renderApp();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    return;
-  }
-
-  const quickSearch = e.target.closest('[data-quick-search]');
-  if (quickSearch) {
-    AppState.jobFilters.search = quickSearch.dataset.quickSearch;
-    AppState.currentRoute = AppState.role === 'guest' ? 'public-jobs' : 'student-jobs';
-    saveAppState();
-    renderApp();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    return;
-  }
-
-  const filterCat = e.target.closest('[data-filter-cat]');
-  if (filterCat) {
-    AppState.jobFilters.category = filterCat.dataset.filterCat;
-    AppState.currentRoute = AppState.role === 'guest' ? 'public-jobs' : 'student-jobs';
-    saveAppState();
-    renderApp();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    return;
-  }
-
-  const toggleSave = e.target.closest('[data-toggle-save]');
-  if (toggleSave) {
-    const jobId = toggleSave.dataset.toggleSave;
-    const idx = AppState.savedJobIds.indexOf(jobId);
-    if (idx >= 0) {
-      AppState.savedJobIds.splice(idx, 1);
-      showToast('Removed from Saved Jobs.', 'info');
-    } else {
-      AppState.savedJobIds.push(jobId);
-      showToast('Job saved to your bookmarks!');
-    }
-    saveAppState();
-    renderApp();
-    return;
-  }
-
-  const applyBtn = e.target.closest('[data-apply-job]');
-  if (applyBtn) {
-    openApplyModal(applyBtn.dataset.applyJob);
-    return;
-  }
-
-  const removeSkill = e.target.closest('[data-remove-skill]');
-  if (removeSkill) {
-    const sk = removeSkill.dataset.removeSkill;
-    const stu = getStudent(AppState.currentStudentId);
-    stu.skills = stu.skills.filter(s => s !== sk);
-    saveAppState();
-    showToast(`Removed skill "${sk}".`, 'info');
-    renderApp();
-    return;
-  }
-
-  const appTab = e.target.closest('[data-app-tab]');
-  if (appTab) {
-    UIState.appStatusTab = appTab.dataset.appTab;
-    renderApp();
-    return;
-  }
-
-  const viewAppDetail = e.target.closest('[data-view-app-detail]');
-  if (viewAppDetail) {
-    const app = AppState.applications.find(a => a.id === viewAppDetail.dataset.viewAppDetail);
-    if (!app) return;
-    const job = getJob(app.jobId);
-    const company = job ? getCompany(job.companyId) : { name: 'Company' };
-    openModal({
-      title: 'Application Details',
-      bodyHtml: `
-        <div class="flex-between mb-md">
-          <div>
-            <h3 style="font-size:1.1rem;">${escapeHtml(job ? job.title : 'Position')}</h3>
-            <div class="text-xs text-muted">${escapeHtml(company.name)} • Applied ${formatDate(app.appliedDate)}</div>
-          </div>
-          ${statusBadge(app.status)}
-        </div>
-        <div class="mb-md">
-          <div class="text-xs font-semibold text-muted">Submitted CV</div>
-          <div class="text-sm font-medium mt-sm">${escapeHtml(app.cvUsed)}</div>
-        </div>
-        <div class="mb-md">
-          <div class="text-xs font-semibold text-muted">Cover Note</div>
-          <p class="text-sm mt-sm" style="background:var(--color-bg);padding:12px;border-radius:var(--radius-sm);">${escapeHtml(app.coverNote)}</p>
-        </div>
-        <div>
-          <div class="text-xs font-semibold text-muted mb-sm" style="margin-bottom:8px;">Status Timeline</div>
-          <div class="flex" style="flex-direction:column;gap:8px;">
-            ${app.timeline.map(t => `
-              <div class="items-center text-sm" style="gap:8px;">
-                <span style="color:var(--color-primary);">${icon('checkCircle')}</span>
-                <span><strong>${formatDate(t.date)}:</strong> ${escapeHtml(t.label)}</span>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `,
-      footerHtml: `
-        <button type="button" class="btn btn-danger-outline" id="withdraw-app-btn">Withdraw Application</button>
-        <button type="button" class="btn btn-primary" onclick="closeModal()">Close</button>
-      `
-    });
-    document.getElementById('withdraw-app-btn').onclick = () => {
-      closeModal();
-      showConfirmDialog({
-        title: 'Withdraw Application',
-        message: 'Are you sure you want to withdraw this application? This action cannot be undone.',
-        confirmLabel: 'Withdraw',
-        danger: true,
-        onConfirm: () => {
-          AppState.applications = AppState.applications.filter(a => a.id !== app.id);
-          saveAppState();
-          showToast('Application withdrawn.', 'info');
-          renderApp();
-        }
-      });
-    };
-    return;
-  }
-
-  const previewCv = e.target.closest('[data-preview-cv]');
-  if (previewCv) {
-    openApplicantCvPreviewModal(previewCv.dataset.previewCv);
-    return;
-  }
-
-  const decideApp = e.target.closest('[data-decide-app]');
-  if (decideApp) {
-    handleApplicantDecision(decideApp.dataset.decideApp, decideApp.dataset.decision);
-    return;
-  }
-
-  const toggleJobStatus = e.target.closest('[data-toggle-job-status]');
-  if (toggleJobStatus) {
-    const job = getJob(toggleJobStatus.dataset.toggleJobStatus);
-    if (job) {
-      job.status = job.status === 'Active' ? 'Paused' : 'Active';
-      saveAppState();
-      showToast(`Job "${job.title}" is now ${job.status}.`, 'info');
-      renderApp();
-    }
-    return;
-  }
-
-  const delCompanyJob = e.target.closest('[data-delete-company-job], [data-delete-admin-job]');
-  if (delCompanyJob) {
-    const id = delCompanyJob.dataset.deleteCompanyJob || delCompanyJob.dataset.deleteAdminJob;
-    const job = getJob(id);
-    showConfirmDialog({
-      title: 'Delete Job Posting',
-      message: `Are you sure you want to permanently delete "${job ? job.title : 'this job'}"?`,
-      confirmLabel: 'Delete Job',
-      danger: true,
-      onConfirm: () => {
-        AppState.jobs = AppState.jobs.filter(j => j.id !== id);
-        saveAppState();
-        showToast('Job posting deleted.', 'info');
-        renderApp();
-      }
-    });
-    return;
-  }
-
-  // Admin handlers
-  const adminTabBtn = e.target.closest('[data-admin-tab]');
-  if (adminTabBtn) {
-    UIState.adminTab = adminTabBtn.dataset.adminTab;
-    UIState.sidebarOpen = false;
-    renderApp();
-    return;
-  }
-
-  const toggleStu = e.target.closest('[data-toggle-student-status]');
-  if (toggleStu) {
-    const stu = getStudent(toggleStu.dataset.toggleStudentStatus);
-    stu.status = stu.status === 'Active' ? 'Suspended' : 'Active';
-    saveAppState();
-    showToast(`${stu.fullName} is now ${stu.status}.`, 'info');
-    renderApp();
-    return;
-  }
-
-  const delStu = e.target.closest('[data-delete-student]');
-  if (delStu) {
-    const id = delStu.dataset.deleteStudent;
-    const stu = getStudent(id);
-    showConfirmDialog({
-      title: 'Remove Student Account',
-      message: `Remove ${stu.fullName} from CareerConnect?`,
-      confirmLabel: 'Remove',
-      danger: true,
-      onConfirm: () => {
-        AppState.students = AppState.students.filter(s => s.id !== id);
-        saveAppState();
-        showToast('Student account removed.', 'info');
-        renderApp();
-      }
-    });
-    return;
-  }
-
-  const verifyComp = e.target.closest('[data-verify-company]');
-  if (verifyComp) {
-    const comp = getCompany(verifyComp.dataset.verifyCompany);
-    comp.verified = true;
-    comp.status = 'Active';
-    saveAppState();
-    showToast(`${comp.name} is now verified!`);
-    renderApp();
-    return;
-  }
-
-  const toggleComp = e.target.closest('[data-toggle-company-status]');
-  if (toggleComp) {
-    const comp = getCompany(toggleComp.dataset.toggleCompanyStatus);
-    comp.status = comp.status === 'Active' ? 'Suspended' : 'Active';
-    saveAppState();
-    showToast(`${comp.name} status set to ${comp.status}.`, 'info');
-    renderApp();
-    return;
-  }
-
-  const toggleCat = e.target.closest('[data-toggle-cat]');
-  if (toggleCat) {
-    const cat = AppState.categories.find(c => c.id === toggleCat.dataset.toggleCat);
-    if (cat) {
-      cat.active = !cat.active;
-      saveAppState();
-      showToast(`Category "${cat.name}" ${cat.active ? 'enabled' : 'disabled'}.`, 'info');
-      renderApp();
-    }
-    return;
-  }
-
-  const delCat = e.target.closest('[data-delete-cat]');
-  if (delCat) {
-    const id = delCat.dataset.deleteCat;
-    showConfirmDialog({
-      title: 'Delete Category',
-      message: 'Remove this job category from the platform?',
-      confirmLabel: 'Delete',
-      danger: true,
-      onConfirm: () => {
-        AppState.categories = AppState.categories.filter(c => c.id !== id);
-        saveAppState();
-        showToast('Category deleted.', 'info');
-        renderApp();
-      }
-    });
-    return;
-  }
-
-  const mobileTab = e.target.closest('[data-mobile-tab]');
-  if (mobileTab) {
-    UIState.mobilePreviewTab = mobileTab.dataset.mobileTab;
-    renderApp();
-    return;
-  }
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-  const modalCloseBtn = document.getElementById('modal-close-btn');
-  if (modalCloseBtn) modalCloseBtn.onclick = closeModal;
-  const backdrop = document.getElementById('app-modal');
-  if (backdrop) {
-    backdrop.onclick = (e) => {
-      if (e.target === backdrop) closeModal();
-    };
-  }
-  renderApp();
-});
+// Auto-run initialization
+InternLensApp.init();

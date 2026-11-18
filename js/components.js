@@ -1,242 +1,225 @@
-/* ==========================================================================
-   CareerConnect – Reusable UI Components & Icon Library
-   ========================================================================== */
+/**
+ * InternLens KH – Reusable UI Components & Rendering Helpers
+ * Course: CADT Year 2 Fundamental Web Design (Term 1)
+ */
 
-const ICONS = {
-  briefcase: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`,
-  search: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>`,
-  mapPin: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>`,
-  clock: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
-  dollar: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
-  bookmark: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>`,
-  bookmarkFilled: `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>`,
-  home: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
-  user: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
-  users: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
-  fileText: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>`,
-  building: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>`,
-  plus: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>`,
-  check: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
-  checkCircle: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
-  x: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
-  shield: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>`,
-  code: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
-  cpu: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>`,
-  layout: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>`,
-  wifi: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" x2="12.01" y1="20" y2="20"/></svg>`,
-  barChart: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></svg>`,
-  layers: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,
-  upload: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>`,
-  menu: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>`,
-  arrowRight: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>`,
-  arrowLeft: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>`,
-  calendar: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>`,
-  edit: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`,
-  trash: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`,
-  eye: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`,
-  smartphone: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>`,
-  palette: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>`,
-  logout: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>`,
-  graduation: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`
-};
+const Components = {
+  /**
+   * Escape HTML special characters to prevent XSS.
+   */
+  escapeHTML(text) {
+    if (text === null || text === undefined) return '';
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    };
+    return String(text).replace(/[&<>"']/g, char => map[char]);
+  },
 
-function icon(name) {
-  return ICONS[name] || ICONS.briefcase;
-}
+  /**
+   * Accessible, inline SVG icons.
+   */
+  getIcon(name, size = 18) {
+    const icons = {
+      search: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`,
+      grid: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>`,
+      table: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"></path></svg>`,
+      check: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
+      alert: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`,
+      briefcase: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>`,
+      building: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="2"></line><line x1="8" y1="6" x2="10" y2="6"></line><line x1="14" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="10" y2="10"></line><line x1="14" y1="10" x2="16" y2="10"></line><line x1="8" y1="14" x2="10" y2="14"></line><line x1="14" y1="14" x2="16" y2="14"></line></svg>`,
+      dollar: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`,
+      target: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`,
+      arrowRight: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`,
+      reset: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2v6h6"></path><path d="M21 12A9 9 0 0 0 6 5.3L3 8"></path><path d="M21 22v-6h-6"></path><path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"></path></svg>`,
+      layers: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>`,
+      info: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`
+    };
+    return icons[name] || '';
+  },
 
-function escapeHtml(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+  /**
+   * Helper to format track-specific CSS class.
+   */
+  getTrackClass(track) {
+    switch (track) {
+      case 'Frontend': return 'track-frontend';
+      case 'Backend/Full-Stack': return 'track-backend';
+      case 'Data/BI': return 'track-data';
+      case 'QA/IT Support': return 'track-qa';
+      default: return 'track-default';
+    }
+  },
 
-function getCompany(companyId) {
-  return AppState.companies.find(c => c.id === companyId) || {
-    name: 'Partner Company',
-    initials: 'PC',
-    color: '#2563EB',
-    industry: 'Technology',
-    location: 'Phnom Penh',
-    verified: true
-  };
-}
+  /**
+   * Helper to format allowance-specific CSS class.
+   */
+  getAllowanceClass(allowance) {
+    switch (allowance) {
+      case 'Paid': return 'allowance-paid';
+      case 'Unpaid': return 'allowance-unpaid';
+      case 'Not Stated': return 'allowance-notstated';
+      default: return 'allowance-default';
+    }
+  },
 
-function getStudent(studentId) {
-  return AppState.students.find(s => s.id === studentId) || AppState.students[0];
-}
+  /**
+   * Render a badge element.
+   */
+  renderBadge(label, modifierClass) {
+    return `<span class="badge ${modifierClass}">${this.escapeHTML(label)}</span>`;
+  },
 
-function getJob(jobId) {
-  return AppState.jobs.find(j => j.id === jobId);
-}
+  /**
+   * Render a single internship card for the grid view.
+   */
+  renderInternshipCard(job) {
+    const trackClass = this.getTrackClass(job.roleTrack);
+    const allowanceClass = this.getAllowanceClass(job.allowance);
 
-function formatDate(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso + 'T00:00:00');
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
+    const mandatoryBadges = job.mandatorySkills.map(skill => 
+      `<span class="skill-tag skill-tag-mandatory" title="Mandatory Skill: ${this.escapeHTML(skill)}">${this.escapeHTML(skill)}</span>`
+    ).join('');
 
-function statusBadge(status) {
-  const map = {
-    'Pending': 'badge-amber',
-    'Under Review': 'badge-info',
-    'Accepted': 'badge-green',
-    'Rejected': 'badge-red',
-    'Active': 'badge-green',
-    'Paused': 'badge-amber',
-    'Closed': 'badge-navy',
-    'Suspended': 'badge-red'
-  };
-  return `<span class="badge ${map[status] || 'badge-navy'}">${escapeHtml(status)}</span>`;
-}
+    const preferredBadges = job.preferredSkills.map(skill => 
+      `<span class="skill-tag skill-tag-preferred" title="Preferred Skill: ${this.escapeHTML(skill)}">${this.escapeHTML(skill)}</span>`
+    ).join('');
 
-function jobTypeBadge(type) {
-  const map = {
-    'Internship': 'badge-blue',
-    'Full-time': 'badge-green',
-    'Part-time': 'badge-purple'
-  };
-  return `<span class="badge ${map[type] || 'badge-navy'}">${escapeHtml(type)}</span>`;
-}
+    return `
+      <article class="card internship-card" data-id="${this.escapeHTML(job.id)}">
+        <div class="card-header">
+          <div class="card-meta-top">
+            <span class="badge badge-track ${trackClass}">${this.escapeHTML(job.roleTrack)}</span>
+            <span class="badge badge-allowance ${allowanceClass}">${this.escapeHTML(job.allowance)}</span>
+          </div>
+          <h3 class="card-title">${this.escapeHTML(job.title)}</h3>
+          <div class="company-row">
+            <span class="company-name">${this.escapeHTML(job.company)}</span>
+            <span class="company-sector">• ${this.escapeHTML(job.sector)}</span>
+          </div>
+        </div>
 
-function renderBrandLogo(clickable = true) {
-  return `
-    <button type="button" class="brand-logo" ${clickable ? 'data-nav="landing"' : ''}>
-      <span class="brand-mark">${icon('briefcase')}</span>
-      <span>Career<em>Connect</em></span>
-    </button>
-  `;
-}
+        <div class="card-body">
+          <p class="job-description">${this.escapeHTML(job.description)}</p>
 
-function renderEmptyState({ iconName = 'search', title, description, actionLabel = '', actionAttrs = '' }) {
-  return `
-    <div class="empty-state">
-      <div class="empty-state-icon">${icon(iconName)}</div>
-      <h3>${escapeHtml(title)}</h3>
-      <p>${escapeHtml(description)}</p>
-      ${actionLabel ? `<button type="button" class="btn btn-primary" ${actionAttrs}>${escapeHtml(actionLabel)}</button>` : ''}
-    </div>
-  `;
-}
+          <div class="job-compensation">
+            <span class="compensation-label">Stipend / Comp:</span>
+            <span class="compensation-value">${this.escapeHTML(job.salary)}</span>
+          </div>
 
-function renderJobCard(job, { showActions = true, compact = false, removeSavedOnly = false } = {}) {
-  const company = getCompany(job.companyId);
-  const isSaved = AppState.savedJobIds.includes(job.id);
-  const studentApp = AppState.applications.find(
-    a => a.jobId === job.id && a.studentId === AppState.currentStudentId
-  );
-
-  return `
-    <article class="card card-interactive job-card ${compact ? 'card-compact' : ''}">
-      <div class="job-card-header">
-        <div class="job-card-company">
-          <div class="company-logo" style="background:${company.color}">${escapeHtml(company.initials)}</div>
-          <div>
-            <button type="button" class="job-title-link" data-open-job="${job.id}">
-              ${escapeHtml(job.title)}
-            </button>
-            <div class="items-center mt-sm" style="margin-top:3px;">
-              <span class="text-sm font-medium">${escapeHtml(company.name)}</span>
-              ${company.verified ? `<span class="badge badge-blue" style="padding:2px 7px;font-size:0.68rem;">Verified</span>` : ''}
+          <div class="skills-block">
+            <div class="skills-subgroup">
+              <span class="skills-group-label">Mandatory (Core):</span>
+              <div class="skills-tag-wrap">${mandatoryBadges}</div>
+            </div>
+            <div class="skills-subgroup">
+              <span class="skills-group-label">Preferred (Bonus):</span>
+              <div class="skills-tag-wrap">${preferredBadges}</div>
             </div>
           </div>
         </div>
-        ${jobTypeBadge(job.jobType)}
-      </div>
 
-      <div class="job-meta-row">
-        <span class="job-meta-item">${icon('mapPin')} ${escapeHtml(job.location)}</span>
-        ${job.salary ? `<span class="job-meta-item">${icon('dollar')} ${escapeHtml(job.salary)}</span>` : ''}
-        <span class="job-meta-item">${icon('clock')} Posted ${formatDate(job.postedDate)}</span>
-      </div>
-
-      ${!compact ? `
-        <div class="flex" style="flex-wrap:wrap;gap:6px;">
-          ${job.skills.slice(0, 4).map(s => `<span class="skill-tag">${escapeHtml(s)}</span>`).join('')}
+        <div class="card-footer">
+          <span class="location-text">📍 ${this.escapeHTML(job.location)}</span>
+          <a href="#checker?jobId=${encodeURIComponent(job.id)}" class="btn btn-primary btn-sm">
+            Check Skill Gap ${this.getIcon('arrowRight', 14)}
+          </a>
         </div>
-      ` : ''}
+      </article>
+    `;
+  },
 
-      ${showActions ? `
-        <div class="job-card-footer">
-          <button type="button" class="btn btn-ghost btn-sm" data-open-job="${job.id}">
-            View Details ${icon('arrowRight')}
-          </button>
-          <div class="items-center">
-            ${removeSavedOnly ? `
-              <button type="button" class="btn btn-danger-outline btn-sm" data-toggle-save="${job.id}">
-                ${icon('trash')} Remove
-              </button>
-            ` : `
-              <button type="button" class="btn btn-outline btn-sm btn-save ${isSaved ? 'saved' : ''}" data-toggle-save="${job.id}" title="${isSaved ? 'Remove from Saved' : 'Save Job'}">
-                ${isSaved ? icon('bookmarkFilled') : icon('bookmark')}
-                ${isSaved ? 'Saved' : 'Save'}
-              </button>
-            `}
-            ${studentApp ? `
-              <span class="badge badge-green">${icon('check')} Applied (${escapeHtml(studentApp.status)})</span>
-            ` : `
-              <button type="button" class="btn btn-primary btn-sm" data-apply-job="${job.id}">
-                Apply Now
-              </button>
-            `}
-          </div>
+  /**
+   * Render a single row for the comparison table.
+   */
+  renderInternshipTableRow(job) {
+    const trackClass = this.getTrackClass(job.roleTrack);
+    const allowanceClass = this.getAllowanceClass(job.allowance);
+
+    const mandatoryBadges = job.mandatorySkills.map(skill => 
+      `<span class="skill-tag skill-tag-mandatory skill-tag-sm">${this.escapeHTML(skill)}</span>`
+    ).join(' ');
+
+    const preferredBadges = job.preferredSkills.map(skill => 
+      `<span class="skill-tag skill-tag-preferred skill-tag-sm">${this.escapeHTML(skill)}</span>`
+    ).join(' ');
+
+    return `
+      <tr>
+        <td class="cell-primary">
+          <div class="table-role-title">${this.escapeHTML(job.title)}</div>
+          <div class="table-role-sub">${this.escapeHTML(job.company)} <span class="table-sector">(${this.escapeHTML(job.sector)})</span></div>
+        </td>
+        <td>
+          <span class="badge badge-track ${trackClass}">${this.escapeHTML(job.roleTrack)}</span>
+        </td>
+        <td>
+          <span class="badge badge-allowance ${allowanceClass}">${this.escapeHTML(job.allowance)}</span>
+          <div class="table-salary-sub">${this.escapeHTML(job.salary)}</div>
+        </td>
+        <td class="cell-skills">${mandatoryBadges}</td>
+        <td class="cell-skills">${preferredBadges}</td>
+        <td class="cell-action">
+          <a href="#checker?jobId=${encodeURIComponent(job.id)}" class="btn btn-outline btn-xs" aria-label="Check skill gap for ${this.escapeHTML(job.title)}">
+            Check Gap
+          </a>
+        </td>
+      </tr>
+    `;
+  },
+
+  /**
+   * Render empty state when search/filter yields 0 results.
+   */
+  renderEmptyState(headline, message, resetCallbackName = 'InternLensApp.resetExplorerFilters') {
+    return `
+      <div class="empty-state-box" role="status" aria-live="polite">
+        <div class="empty-state-icon">
+          ${this.getIcon('search', 40)}
         </div>
-      ` : ''}
-    </article>
-  `;
-}
+        <h3 class="empty-state-title">${this.escapeHTML(headline)}</h3>
+        <p class="empty-state-text">${this.escapeHTML(message)}</p>
+        <button type="button" class="btn btn-outline btn-sm" onclick="${resetCallbackName}()">
+          ${this.getIcon('reset', 14)} Reset All Filters
+        </button>
+      </div>
+    `;
+  },
 
-/* Toast Notification System */
-function showToast(message, type = 'success') {
-  const container = document.getElementById('toast-container');
-  if (!container) return;
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  toast.innerHTML = `
-    <span style="margin-top:1px;">${icon(type === 'danger' ? 'x' : 'checkCircle')}</span>
-    <span style="flex:1;">${escapeHtml(message)}</span>
-  `;
-  container.appendChild(toast);
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateX(16px)';
-    toast.style.transition = 'all 180ms ease';
-    setTimeout(() => toast.remove(), 200);
-  }, 3400);
-}
+  /**
+   * Render a metric KPI card for Market Overview.
+   */
+  renderMetricCard(title, value, subtitle, iconName) {
+    return `
+      <div class="kpi-card">
+        <div class="kpi-icon-wrap">${this.getIcon(iconName, 24)}</div>
+        <div class="kpi-content">
+          <span class="kpi-title">${this.escapeHTML(title)}</span>
+          <span class="kpi-value">${this.escapeHTML(value)}</span>
+          <span class="kpi-sub">${this.escapeHTML(subtitle)}</span>
+        </div>
+      </div>
+    `;
+  },
 
-/* Modal & Confirmation Dialog System */
-function openModal({ title, bodyHtml, footerHtml = '', large = false }) {
-  const backdrop = document.getElementById('app-modal');
-  const dialog = backdrop.querySelector('.modal-dialog');
-  dialog.classList.toggle('modal-dialog-lg', large);
-  document.getElementById('modal-title').textContent = title;
-  document.getElementById('modal-body').innerHTML = bodyHtml;
-  document.getElementById('modal-footer').innerHTML = footerHtml;
-  backdrop.classList.add('open');
-}
-
-function closeModal() {
-  const backdrop = document.getElementById('app-modal');
-  if (backdrop) backdrop.classList.remove('open');
-}
-
-function showConfirmDialog({ title, message, confirmLabel = 'Confirm', danger = false, onConfirm }) {
-  openModal({
-    title,
-    bodyHtml: `<p style="color:var(--color-text);line-height:1.6;">${escapeHtml(message)}</p>`,
-    footerHtml: `
-      <button type="button" class="btn btn-outline" id="confirm-cancel-btn">Cancel</button>
-      <button type="button" class="btn ${danger ? 'btn-danger' : 'btn-primary'}" id="confirm-ok-btn">${escapeHtml(confirmLabel)}</button>
-    `
-  });
-  document.getElementById('confirm-cancel-btn').onclick = closeModal;
-  document.getElementById('confirm-ok-btn').onclick = () => {
-    closeModal();
-    onConfirm();
-  };
-}
+  /**
+   * Render horizontal skill frequency bar for Market Overview.
+   */
+  renderSkillBar(skillName, count, totalJobs) {
+    const percentage = Math.round((count / totalJobs) * 100);
+    return `
+      <div class="skill-freq-item">
+        <div class="skill-freq-header">
+          <span class="skill-freq-name">${this.escapeHTML(skillName)}</span>
+          <span class="skill-freq-stats">${count} listings (${percentage}%)</span>
+        </div>
+        <div class="skill-freq-track" role="progressbar" aria-valuenow="${percentage}" aria-valuemin="0" aria-valuemax="100" aria-label="${this.escapeHTML(skillName)} demanded in ${percentage}% of sample">
+          <div class="skill-freq-fill" style="width: ${percentage}%;"></div>
+        </div>
+      </div>
+    `;
+  }
+};
