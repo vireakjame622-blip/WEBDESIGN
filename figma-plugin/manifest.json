@@ -1,0 +1,7 @@
+{
+  "name": "CareerConnect UI/UX Generator",
+  "id": "careerconnect-cadt-uiux-generator",
+  "api": "1.0.0",
+  "main": "code.js",
+  "editorType": ["figma"]
+}
